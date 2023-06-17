@@ -3,4 +3,4 @@ project(okfs C)
 
 set(CMAKE_C_STANDARD 23)
 
-add_executable(okfs main.c)
+add_executable(okfs main.c okfs.c okfs.h disk.c disk.h)
