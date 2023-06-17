@@ -4,7 +4,7 @@ Inode global_head = NULL;
 Inode current_dir = NULL;
 int cur_depth;
 EmptyBlockData empty_block_head;
-InodeIdx inodeBlockBorder = {0, 4};
+InodeIdx inode_block_border = {0, sizeof(uint32_t) + sizeof(InodeIdx)};
 
 void read_inode_from_disk(Inode inode, InodeIdx idx) {
     char buff[sizeof(Inode_t)] = {0};
@@ -39,7 +39,7 @@ void okfs_create(){
             {0, 0},
             {0, 0},
             {UINT32_MAX, UINT32_MAX},
-            inodeBlockBorder,
+            inode_block_border,
             true,
             "\0",
             -1,
@@ -50,7 +50,7 @@ void okfs_create(){
     char buff[BLOCK_SIZE] = {0};
 
     memcpy(buff, &head, sizeof(Inode_t));
-    disk_write(inodeBlockBorder.block_idx, inodeBlockBorder.block_off, buff, sizeof(Inode_t));
+    disk_write(inode_block_border.block_idx, inode_block_border.block_off, buff, sizeof(Inode_t));
 
     EmptyBlockData all_memory = {
             INODE_BLOCKS + 1,
@@ -63,7 +63,8 @@ void okfs_create(){
     memcpy(buff, &all_memory.idx, sizeof(uint32_t));
     disk_write(0, 0, buff, sizeof(uint32_t));
 
-    inodeBlockBorder.block_off += sizeof(Inode_t);
+    memcpy(buff, &inode_block_border, sizeof(InodeIdx));
+    disk_write(0, sizeof(uint32_t), buff, sizeof(InodeIdx));
 
     disk_close();
 }
@@ -74,25 +75,35 @@ void okfs_mount(){
     global_head = (Inode) malloc(sizeof(Inode_t));
     current_dir = global_head;
     cur_depth = 0;
-    read_inode_from_disk(global_head, inodeBlockBorder);
+
+    read_inode_from_disk(global_head, inode_block_border);
 
     uint32_t free_block_idx;
     char buff[BLOCK_SIZE] = {0};
     disk_read(0, 0, buff, sizeof(uint32_t));
     memcpy(&free_block_idx, buff, sizeof(uint32_t));
 
+    disk_read(0, sizeof(uint32_t), buff, sizeof(InodeIdx));
+    memcpy(&inode_block_border, buff, sizeof(InodeIdx));
+
     disk_read_block(free_block_idx, buff);
     memcpy(&empty_block_head, buff, sizeof(EmptyBlockData));
+
+    inode_block_border.block_off += sizeof(Inode_t);
 
 }
 
 void okfs_unmount(){
-    char buff[sizeof(uint32_t)] = {0};
+    // save emptyblock head pos
+    char buff[sizeof(InodeIdx)] = {0};
     memcpy(buff, &empty_block_head.idx, sizeof(uint32_t));
     disk_write(0, 0, buff, sizeof(uint32_t));
 
-    InodeIdx idx = {0, 0};
-    write_inode_to_disk(current_dir, idx);
+    // save inode border
+    memcpy(buff, &inode_block_border, sizeof(InodeIdx));
+    disk_write(0, sizeof(uint32_t), buff, sizeof(InodeIdx));
+
+    write_inode_to_disk(current_dir, current_dir->idx);
     if (current_dir != global_head)
         free(current_dir);
     free(global_head);
@@ -160,11 +171,11 @@ int inode_insert(Inode dir, Inode new){
 }
 
 int okfs_mkdir(char name[MAX_FILE_NAME_SIZE]){
-    InodeIdx prevIdx = inodeBlockBorder;
-    if (inodeBlockBorder.block_off + sizeof(Inode_t) > BLOCK_SIZE) {
-        inodeBlockBorder.block_off = 0;
-        inodeBlockBorder.block_idx++;
-        if (inodeBlockBorder.block_idx > INODE_BLOCKS) {
+    InodeIdx prevIdx = inode_block_border;
+    if (inode_block_border.block_off + sizeof(Inode_t) > BLOCK_SIZE) {
+        inode_block_border.block_off = 0;
+        inode_block_border.block_idx++;
+        if (inode_block_border.block_idx > INODE_BLOCKS) {
             return -2; // out of inode blocks
         }
     }
@@ -172,7 +183,7 @@ int okfs_mkdir(char name[MAX_FILE_NAME_SIZE]){
             {0, 0},
             {0, 0},
             current_dir->idx,
-            inodeBlockBorder,
+            inode_block_border,
             true,
             "\0",
             -1,
@@ -182,13 +193,13 @@ int okfs_mkdir(char name[MAX_FILE_NAME_SIZE]){
     strcpy(new_dir.name, name);
 
     if (inode_insert(current_dir, &new_dir) == -1){
-        inodeBlockBorder = prevIdx;
+        inode_block_border = prevIdx;
         return -1; // dir/file with that name already exists
     }
 
-    write_inode_to_disk(&new_dir, inodeBlockBorder);
+    write_inode_to_disk(&new_dir, inode_block_border);
 
-    inodeBlockBorder.block_off += sizeof(Inode_t);
+    inode_block_border.block_off += sizeof(Inode_t);
 
     return 0;
 }
@@ -298,11 +309,11 @@ uint32_t find_free_space(uint32_t num_blocks){
 }
 
 int okfs_mkfile(char name[MAX_FILE_NAME_SIZE], char* content){
-    InodeIdx prevIdx = inodeBlockBorder;
-    if (inodeBlockBorder.block_off + sizeof(Inode_t) > BLOCK_SIZE) {
-        inodeBlockBorder.block_off = 0;
-        inodeBlockBorder.block_idx++;
-        if (inodeBlockBorder.block_idx > INODE_BLOCKS) {
+    InodeIdx prevIdx = inode_block_border;
+    if (inode_block_border.block_off + sizeof(Inode_t) > BLOCK_SIZE) {
+        inode_block_border.block_off = 0;
+        inode_block_border.block_idx++;
+        if (inode_block_border.block_idx > INODE_BLOCKS) {
             return -2; // out of inode blocks
         }
     }
@@ -323,7 +334,7 @@ int okfs_mkfile(char name[MAX_FILE_NAME_SIZE], char* content){
             {0, 0},
             {0, 0},
             current_dir->idx,
-            inodeBlockBorder,
+            inode_block_border,
             false,
             "\0",
             free_block_idx,
@@ -333,13 +344,13 @@ int okfs_mkfile(char name[MAX_FILE_NAME_SIZE], char* content){
     strcpy(new_file.name, name);
 
     if (inode_insert(current_dir, &new_file) == -1){
-        inodeBlockBorder = prevIdx;
+        inode_block_border = prevIdx;
         return -1; // dir/file with that name already exists
     }
 
-    write_inode_to_disk(&new_file, inodeBlockBorder);
+    write_inode_to_disk(&new_file, inode_block_border);
 
-    inodeBlockBorder.block_off += sizeof(Inode_t);
+    inode_block_border.block_off += sizeof(Inode_t);
 
     return 0;
 }
