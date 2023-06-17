@@ -14,8 +14,10 @@
 void disk_create();
 void disk_start();
 void disk_close();
-void disk_write_block(uint block_idx, char* buff);
-void disk_read_block(uint block_idx, char* buff);
+void disk_write_block(uint32_t block_idx, char* buff);
+void disk_read_block(uint32_t block_idx, char* buff);
+void disk_write(uint32_t block_idx, uint32_t block_off, char* buff, uint32_t size);
+void disk_read(uint32_t block_idx, uint32_t block_off, char* buff, uint32_t size);
 
 
 

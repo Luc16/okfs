@@ -38,7 +38,7 @@ void disk_close(){
     disk_ptr = NULL;
 }
 
-void disk_write_block(uint block_idx, char* buff) {
+void disk_write_block(uint32_t block_idx, char* buff) {
     assert(disk_ptr != NULL && "disk_write_block: cannot close uninitialized disk");
     assert(block_idx < NUM_BLOCKS && "disk_write_block: block out of bounds");
     assert(fseek(disk_ptr, block_idx*BLOCK_SIZE, SEEK_SET) == 0 && "disk_write_block: fseek failed");
@@ -46,10 +46,28 @@ void disk_write_block(uint block_idx, char* buff) {
     fwrite(buff, sizeof(char), BLOCK_SIZE, disk_ptr);
 }
 
-void disk_read_block(uint block_idx, char* buff) {
+void disk_read_block(uint32_t block_idx, char* buff) {
     assert(disk_ptr != NULL && "disk_write_block: cannot close uninitialized disk");
     assert(block_idx < NUM_BLOCKS && "disk_write_block: block out of bounds");
     assert(fseek(disk_ptr, block_idx*BLOCK_SIZE, SEEK_SET) == 0 && "disk_write_block: fseek failed");
 
     fread(buff, sizeof(char), BLOCK_SIZE, disk_ptr);
+}
+
+void disk_write(uint32_t block_idx, uint32_t block_off, char* buff, uint32_t size){
+    assert(disk_ptr != NULL && "disk_write: cannot close uninitialized disk");
+    assert(block_idx < NUM_BLOCKS && "disk_write: block out of bounds");
+    assert(block_off < BLOCK_SIZE && "disk_write: invalid offset");
+    assert(fseek(disk_ptr, (block_idx*BLOCK_SIZE) + block_off, SEEK_SET) == 0 && "disk_write: fseek failed");
+
+    fwrite(buff, sizeof(char), size, disk_ptr);
+}
+
+void disk_read(uint32_t block_idx, uint32_t block_off, char* buff, uint32_t size){
+    assert(disk_ptr != NULL && "disk_read: cannot close uninitialized disk");
+    assert(block_idx < NUM_BLOCKS && "disk_read: block out of bounds");
+    assert(block_off < BLOCK_SIZE && "disk_read: invalid offset");
+    assert(fseek(disk_ptr, (block_idx*BLOCK_SIZE) + block_off, SEEK_SET) == 0 && "disk_read: fseek failed");
+
+    fread(buff, sizeof(char), size, disk_ptr);
 }

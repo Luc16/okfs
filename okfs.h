@@ -5,28 +5,48 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include "disk.h"
 
 #define MAX_FILE_NAME_SIZE 50
+#define INODE_BLOCKS 64
 
-typedef struct s_Inode_t {
-    struct s_Inode_t* children;
-    struct s_Inode_t* next;
-    struct s_Inode_t* parent;
+typedef struct {
+    uint32_t block_idx, block_off;
+} InodeIdx;
+
+typedef struct {
+    InodeIdx children;
+    InodeIdx next;
+    InodeIdx parent;
+    InodeIdx idx;
     bool isDirectory;
     char name[MAX_FILE_NAME_SIZE];
-    void* data;
+    uint32_t file_idx;
     uint32_t size;
 } Inode_t;
 
 typedef Inode_t* Inode;
 
+typedef struct {
+    uint32_t idx;
+    uint32_t next;
+    uint32_t size;
+} EmptyBlockData;
+
+void okfs_create();
+void okfs_mount();
+void okfs_unmount();
+int okfs_mkdir(char name[50]);
+void okfs_ls();
+int okfs_cd(char name[50]);
+void okfs_print_cur_dir_path();
+int okfs_mkfile(char name[MAX_FILE_NAME_SIZE], char* content);
+int okfs_cat(char name[MAX_FILE_NAME_SIZE]);
+int okfs_delfile(char name[MAX_FILE_NAME_SIZE]);
+
 /* TODO:
- * mkdir nome
- * mkfile nome "conteudo"
  * cgfile nome "novo conteudo"
- * delfile nome
  * cp nome dir
- * ls
  * */
 
 #endif //OKFS_OKFS_H
