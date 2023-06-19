@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <inttypes.h>
+#include <stdint.h>
 
 #define BLOCK_SIZE (1 << 10)
 //#define NUM_BLOCKS (1 << 20)

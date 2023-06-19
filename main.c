@@ -74,7 +74,6 @@ int main() {
         } else if (strcmp("mkfile", cmd) == 0){
             size_t size = strlen(content);
             content[strlen(content) - 1] = '\0';
-            printf("%s %s\n", name, content);
             int res = okfs_mkfile(name, content, size);
             if (res == -1) printf("File/Dir with name %s already exists in folder\n", name);
             if (res == -2) printf("Inode space is full, no more files or directories can be added\n");
@@ -102,7 +101,7 @@ int main() {
             size_t size = strlen(content);
             content[strlen(content) - 1] = '\0';
             int res = okfs_cpfile(name, content, size);
-            if (res == -1) printf("File/Dir with name %s already exists in folder\n", name);
+            if (res == -1) printf("File/Dir with name %s already exists in folder\n", content);
             if (res == -2) printf("Inode space is full, no more files or directories can be added\n");
             if (res == -3) printf("Name: %s is too long\n", content);
         } else {

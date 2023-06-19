@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <string.h>
 #include "disk.h"
 
@@ -34,6 +33,10 @@ typedef struct {
     uint32_t size;
 } EmptyBlockData;
 
+typedef struct {
+    uint32_t num_pointers;
+} FileMetadata;
+
 void okfs_create();
 void okfs_mount();
 void okfs_unmount();
@@ -48,8 +51,5 @@ int okfs_cgfile(char name[MAX_FILE_NAME_SIZE], char* content, size_t size);
 int okfs_mvfile(char name[MAX_FILE_NAME_SIZE], char* path, size_t path_size);
 int okfs_cpfile(char name[MAX_FILE_NAME_SIZE], char* new_name, size_t new_name_size);
 
-/* TODO:
- * cp nome dir
- * */
 
 #endif //OKFS_OKFS_H
