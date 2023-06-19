@@ -60,14 +60,16 @@ int main() {
             okfs_ls();
         } else if (strcmp("mkdir", cmd) == 0){
             int res = okfs_mkdir(name);
-            if (res == -1) printf("File/Dir with this name already exists in folder\n");
+            if (res == -1) printf("File/Dir with name %s already exists in folder\n", name);
             if (res == -2) printf("Inode space is full, no more files or directories can be added\n");
         } else if (strcmp("cd", cmd) == 0){
             int res = okfs_cd(name);
-            if (res == -1) printf("File/Dir not found\n");
+            if (res == -1) printf("Directory %s not found\n", name);
         } else if (strcmp("mkfile", cmd) == 0){
-            int res = okfs_mkfile(name, content);
-            if (res == -1) printf("File/Dir with this name already exists in folder\n");
+            size_t size = strlen(content);
+            content[strlen(content) - 1] = '\0';
+            int res = okfs_mkfile(name, content, size);
+            if (res == -1) printf("File/Dir with name %s already exists in folder\n", name);
             if (res == -2) printf("Inode space is full, no more files or directories can be added\n");
             if (res == -3) printf("Memory is full, no more files or directories can be added\n");
         } else if (strcmp("cat", cmd) == 0){
@@ -76,6 +78,12 @@ int main() {
         } else if (strcmp("delfile", cmd) == 0){
             int res = okfs_delfile(name);
             if (res == -1) printf("File not found\n");
+        } else if (strcmp("cgfile", cmd) == 0){
+            size_t size = strlen(content);
+            content[strlen(content) - 1] = '\0';
+            int res = okfs_cgfile(name, content, size);
+            if (res == -1) printf("File/Dir with name %s already exists in folder\n", name);
+            if (res == -3) printf("Memory is full, no more files or directories can be added\n");
         } else {
             printf("Invalid command: %s\n", cmd);
         }

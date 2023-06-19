@@ -40,12 +40,13 @@ int okfs_mkdir(char name[50]);
 void okfs_ls();
 int okfs_cd(char name[50]);
 void okfs_print_cur_dir_path();
-int okfs_mkfile(char name[MAX_FILE_NAME_SIZE], char* content);
+int okfs_mkfile(char name[MAX_FILE_NAME_SIZE], char* content, size_t size);
 int okfs_cat(char name[MAX_FILE_NAME_SIZE]);
 int okfs_delfile(char name[MAX_FILE_NAME_SIZE]);
+int okfs_cgfile(char name[MAX_FILE_NAME_SIZE], char* content, size_t size);
 
 /* TODO:
- * cgfile nome "novo conteudo"
+ * mv nome dir
  * cp nome dir
  * */
 

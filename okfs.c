@@ -308,7 +308,7 @@ uint32_t find_free_space(uint32_t num_blocks){
     return space_idx;
 }
 
-int okfs_mkfile(char name[MAX_FILE_NAME_SIZE], char* content){
+int okfs_mkfile(char name[MAX_FILE_NAME_SIZE], char* content, size_t size){
     InodeIdx prevIdx = inode_block_border;
     if (inode_block_border.block_off + sizeof(Inode_t) > BLOCK_SIZE) {
         inode_block_border.block_off = 0;
@@ -317,8 +317,6 @@ int okfs_mkfile(char name[MAX_FILE_NAME_SIZE], char* content){
             return -2; // out of inode blocks
         }
     }
-
-    size_t size = strlen(content);
 
     uint32_t num_blocks = (size / (NUM_BLOCKS)) + (size % (NUM_BLOCKS) != 0);
 
@@ -338,7 +336,7 @@ int okfs_mkfile(char name[MAX_FILE_NAME_SIZE], char* content){
             false,
             "\0",
             free_block_idx,
-            size
+            num_blocks
     };
 
     strcpy(new_file.name, name);
@@ -364,9 +362,8 @@ int okfs_cat(char name[MAX_FILE_NAME_SIZE]) {
         Inode_t cur;
         read_inode_from_disk(&cur, idx);
         if (!cur.isDirectory && strcmp(name, cur.name) == 0){
-            uint32_t num_blocks = (cur.size / (NUM_BLOCKS)) + (cur.size % (NUM_BLOCKS) != 0);
             char buff[BLOCK_SIZE];
-            for (uint32_t i = 0; i < num_blocks; i++){
+            for (uint32_t i = 0; i < cur.size; i++){
                 disk_read_block(cur.file_idx + i, buff);
                 printf("%s", buff);
             }
@@ -423,6 +420,46 @@ int okfs_delfile(char name[MAX_FILE_NAME_SIZE]){
         prev = cur;
     }
     return 0;
+}
+
+int okfs_cgfile(char name[MAX_FILE_NAME_SIZE], char* content, size_t size){
+    if (current_dir->children.block_idx == 0 && current_dir->children.block_off == 0){
+        return -1;
+    }
+    InodeIdx idx = current_dir->children;
+    Inode_t cur;
+    while (true) {
+        read_inode_from_disk(&cur, idx);
+        if (!cur.isDirectory && strcmp(name, cur.name) == 0){
+            break;
+        }
+        // end of dir children
+        if (cur.next.block_off == 0 && cur.next.block_idx == 0) {
+            return -1;
+        }
+        idx = cur.next;
+    }
+
+    uint32_t num_blocks = (size / (NUM_BLOCKS)) + (size % (NUM_BLOCKS) != 0);
+    uint32_t free_block_idx = find_free_space(num_blocks);
+    if (free_block_idx == 0) return -3;
+
+    for (uint32_t i = 0; i < num_blocks; i++) {
+        disk_write_block(free_block_idx + i, &content[i*(BLOCK_SIZE)]);
+    }
+
+    uint32_t prev_idx = cur.file_idx;
+    uint32_t prev_size = cur.size;
+    cur.file_idx = free_block_idx;
+    cur.size = num_blocks;
+
+    write_inode_to_disk(&cur, cur.idx);
+
+    delete_file(prev_idx, prev_size);
+
+    return 0;
+
+
 }
 
 
