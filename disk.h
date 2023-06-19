@@ -6,9 +6,9 @@
 #include <string.h>
 #include <inttypes.h>
 
-#define BLOCK_SIZE 1 << 10
-//#define NUM_BLOCKS 1 << 20
-#define NUM_BLOCKS 1 << 15
+#define BLOCK_SIZE (1 << 10)
+//#define NUM_BLOCKS (1 << 20)
+#define NUM_BLOCKS (1 << 15)
 #define DISK_NAME "../okfs.disk"
 
 void disk_create();

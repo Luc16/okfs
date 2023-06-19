@@ -16,6 +16,10 @@ void parseLine(const char* line, size_t lineSize, char* cmd, char* name, char* c
                 cmd[idx++] = line[i];
                 break;
             case 1:
+                if (idx > MAX_FILE_NAME_SIZE - 1) {
+                    idx = MAX_FILE_NAME_SIZE - 1;
+                    while (line[i] != ' ' && line[i] != '\n') i++;
+                }
                 if (line[i] == ' ' || line[i] == '\n') {
                     count = 2;
                     name[idx] = '\0';
@@ -25,7 +29,9 @@ void parseLine(const char* line, size_t lineSize, char* cmd, char* name, char* c
                 name[idx++] = line[i];
                 break;
             case 2:
-                if (idx < BLOCK_SIZE) content[idx++] = line[i];
+                if (idx + 1 < MAX_CONTENT_SIZE) {
+                    content[idx++] = line[i];
+                }
                 break;
             default:
                 break;
@@ -37,7 +43,7 @@ void parseLine(const char* line, size_t lineSize, char* cmd, char* name, char* c
 int main() {
     char cmd[50] = {0};
     char name[50] = {0};
-    char content[4*BLOCK_SIZE] = {0};
+    char content[MAX_CONTENT_SIZE] = {0};
     size_t totalSize;
     char *line = NULL;
 
@@ -68,6 +74,7 @@ int main() {
         } else if (strcmp("mkfile", cmd) == 0){
             size_t size = strlen(content);
             content[strlen(content) - 1] = '\0';
+            printf("%s %s\n", name, content);
             int res = okfs_mkfile(name, content, size);
             if (res == -1) printf("File/Dir with name %s already exists in folder\n", name);
             if (res == -2) printf("Inode space is full, no more files or directories can be added\n");
@@ -91,12 +98,19 @@ int main() {
             if (res == -1) printf("File/Dir with name %s not found in folder\n", name);
             if (res == -2) printf("Could not resolve path %s\n", content);
             if (res == -3) printf("File/Dir with name %s already exists in folder destination\n", name);
+        } else if (strcmp("cpfile", cmd) == 0){
+            size_t size = strlen(content);
+            content[strlen(content) - 1] = '\0';
+            int res = okfs_cpfile(name, content, size);
+            if (res == -1) printf("File/Dir with name %s already exists in folder\n", name);
+            if (res == -2) printf("Inode space is full, no more files or directories can be added\n");
+            if (res == -3) printf("Name: %s is too long\n", content);
         } else {
             printf("Invalid command: %s\n", cmd);
         }
         free(line);
         line = NULL;
-        memset(content, 0, 4*BLOCK_SIZE);
+        memset(content, 0, MAX_CONTENT_SIZE);
     }
     okfs_unmount();
     return 0;

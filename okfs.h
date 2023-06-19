@@ -9,6 +9,7 @@
 
 #define MAX_FILE_NAME_SIZE 50
 #define INODE_BLOCKS 64
+#define MAX_CONTENT_SIZE (BLOCK_SIZE*4)
 
 typedef struct {
     uint32_t block_idx, block_off;
@@ -45,6 +46,7 @@ int okfs_cat(char name[MAX_FILE_NAME_SIZE]);
 int okfs_delfile(char name[MAX_FILE_NAME_SIZE]);
 int okfs_cgfile(char name[MAX_FILE_NAME_SIZE], char* content, size_t size);
 int okfs_mvfile(char name[MAX_FILE_NAME_SIZE], char* path, size_t path_size);
+int okfs_cpfile(char name[MAX_FILE_NAME_SIZE], char* new_name, size_t new_name_size);
 
 /* TODO:
  * cp nome dir
