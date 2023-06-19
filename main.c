@@ -81,6 +81,9 @@ int main() {
         } else if (strcmp("cat", cmd) == 0){
             int res = okfs_cat(name);
             if (res == -1) printf("File %s not found\n", name);
+        } else if (strcmp("info", cmd) == 0){
+            int res = okfs_inode_info(name);
+            if (res == -1) printf("File %s not found\n", name);
         } else if (strcmp("delfile", cmd) == 0){
             int res = okfs_delfile(name);
             if (res == -1) printf("File %s not found\n", name);

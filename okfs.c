@@ -53,7 +53,6 @@ int inode_insert(Inode dir, Inode new){
         prev = cur;
         idx = cur.next;
     }
-    inode_write_to_disk(new, new->idx);
     return 0;
 }
 
@@ -82,7 +81,6 @@ int inode_create(bool isDirectory, char name[MAX_FILE_NAME_SIZE], uint32_t file_
         inode_block_border = prevIdx;
         return -1; // dir/file with that name already exists
     }
-
     inode_write_to_disk(&new_inode, new_inode.idx);
 
     inode_block_border.block_off += sizeof(Inode_t);
@@ -109,6 +107,7 @@ int inode_remove(Inode dir, char name[MAX_FILE_NAME_SIZE], Inode out_removed) {
                 dir->children = cur.next;
             } else {
                 prev.next = cur.next;
+                inode_write_to_disk(&prev, prev.idx);
             }
             *out_removed = cur;
             break;
@@ -134,12 +133,12 @@ void empty_block_data_write_to_disk(EmptyBlockData* data, uint32_t idx) {
 void file_metadata_read_from_disk(FileMetadata* metadata, uint32_t idx) {
     char buff[sizeof(FileMetadata)] = {0};
     disk_read(idx, 0, buff, sizeof(FileMetadata));
-    memcpy(metadata, buff, sizeof(FileMetadata));
+    memcpy(&metadata->num_pointers, buff, sizeof(FileMetadata));
 }
 
 void file_metadata_write_to_disk(FileMetadata* metadata, uint32_t idx) {
     char buff[sizeof(FileMetadata)] = {0};
-    memcpy(buff, &metadata, sizeof(FileMetadata));
+    memcpy(buff, &metadata->num_pointers, sizeof(FileMetadata));
     disk_write(idx, 0, buff, sizeof(FileMetadata));
 }
 
@@ -193,9 +192,13 @@ int file_create(char* content, size_t size, uint32_t* out_idx, uint32_t* out_num
 
     if (free_block_idx == 0) return -1;
     FileMetadata metadata = {1};
+    FileMetadata metadata2;
 
     // writing first block
     file_metadata_write_to_disk(&metadata, free_block_idx);
+
+    file_metadata_read_from_disk(&metadata2, free_block_idx);
+
     disk_write(free_block_idx, sizeof(FileMetadata), content, BLOCK_SIZE - sizeof(FileMetadata));
 
     for (uint32_t i = 1; i < num_blocks; i++) {
@@ -209,7 +212,6 @@ int file_create(char* content, size_t size, uint32_t* out_idx, uint32_t* out_num
 
 // TODO: merge???????
 void file_delete(uint32_t block_idx, uint32_t size){
-    printf("Deleting file\n");
     EmptyBlockData new_data = {
             block_idx,
             empty_block_head.idx,
@@ -329,6 +331,7 @@ void okfs_mount(){
 void okfs_unmount(){
     // save emptyblock head pos
     char buff[sizeof(InodeIdx)] = {0};
+    char buff2[sizeof(InodeIdx)] = {0};
     memcpy(buff, &empty_block_head.idx, sizeof(uint32_t));
     disk_write(0, 0, buff, sizeof(uint32_t));
 
@@ -467,7 +470,6 @@ int okfs_delfile(char name[MAX_FILE_NAME_SIZE]){
     if (res == -1) return -1;
     FileMetadata metadata;
     file_metadata_read_from_disk(&metadata, inode.file_idx);
-    printf("metadata: %d\n", metadata.num_pointers);
     if (--metadata.num_pointers == 0) file_delete(inode.file_idx, inode.size);
     else file_metadata_write_to_disk(&metadata, inode.file_idx);
     return 0;
@@ -519,17 +521,23 @@ int okfs_mvfile(char name[MAX_FILE_NAME_SIZE], char* path, size_t path_size){
     res = resolvePath(path, path_size, &new_dir);
     if (res == -1) {
         inode_insert(current_dir, &inode);
+        inode_write_to_disk(&inode, inode.idx);
         return -2;
     }
 
-    res = inode_insert(&new_dir, &inode);
-    if (res == -1) {
-        inode_insert(current_dir, &inode);
-        return -3;
-    }
     inode.parent = new_dir.idx;
     inode.next.block_off = 0;
     inode.next.block_idx = 0;
+    res = inode_insert(&new_dir, &inode);
+    if (res == -1) {
+        inode.parent = current_dir->idx;
+        inode.next.block_off = 0;
+        inode.next.block_idx = 0;
+        inode_insert(current_dir, &inode);
+        inode_write_to_disk(&inode, inode.idx);
+        return -3;
+    }
+
     inode_write_to_disk(&inode, inode.idx);
     inode_write_to_disk(&new_dir, new_dir.idx);
     return 0;
@@ -559,5 +567,33 @@ int okfs_cpfile(char name[MAX_FILE_NAME_SIZE], char* new_name, size_t new_name_s
     file_metadata_write_to_disk(&metadata, cur.file_idx);
 
     return inode_create(false, new_name, cur.file_idx, cur.size);
+}
+
+int okfs_inode_info(char name[MAX_FILE_NAME_SIZE]){
+    InodeIdx idx = current_dir->children;
+    while (true) {
+        // end of dir children
+        if (idx.block_off == 0 && idx.block_idx == 0) {
+            return -1;
+        }
+        Inode_t cur;
+        inode_read_from_disk(&cur, idx);
+        if (strcmp(name, cur.name) == 0){
+            printf("*---------------------------*\n");
+            printf("Inode info:\n");
+            printf("name: %s\n", cur.name);
+            printf( "idx: idx = %d, off = %d\n", cur.idx.block_idx, cur.idx.block_off);
+            printf( "parent: idx = %d, off = %d\n", cur.parent.block_idx, cur.parent.block_off);
+            printf( "children: idx = %d, off = %d\n", cur.children.block_idx, cur.children.block_off);
+            printf( "next: idx = %d, off = %d\n", cur.next.block_idx, cur.next.block_off);
+            printf("is directory: %d\n", cur.isDirectory);
+            printf("file idx: %d\n", cur.file_idx);
+            printf("file size: %d\n", cur.size);
+            printf("*---------------------------*\n");
+            break;
+        }
+        idx = cur.next;
+    }
+    return 0;
 }
 

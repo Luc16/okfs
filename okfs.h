@@ -50,6 +50,6 @@ int okfs_delfile(char name[MAX_FILE_NAME_SIZE]);
 int okfs_cgfile(char name[MAX_FILE_NAME_SIZE], char* content, size_t size);
 int okfs_mvfile(char name[MAX_FILE_NAME_SIZE], char* path, size_t path_size);
 int okfs_cpfile(char name[MAX_FILE_NAME_SIZE], char* new_name, size_t new_name_size);
-
+int okfs_inode_info(char name[MAX_FILE_NAME_SIZE]);
 
 #endif //OKFS_OKFS_H
