@@ -44,9 +44,9 @@ int okfs_mkfile(char name[MAX_FILE_NAME_SIZE], char* content, size_t size);
 int okfs_cat(char name[MAX_FILE_NAME_SIZE]);
 int okfs_delfile(char name[MAX_FILE_NAME_SIZE]);
 int okfs_cgfile(char name[MAX_FILE_NAME_SIZE], char* content, size_t size);
+int okfs_mvfile(char name[MAX_FILE_NAME_SIZE], char* path, size_t path_size);
 
 /* TODO:
- * mv nome dir
  * cp nome dir
  * */
 

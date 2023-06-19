@@ -391,25 +391,22 @@ void delete_file(uint32_t block_idx, uint32_t size){
 }
 
 // TODO: use freed space
-int okfs_delfile(char name[MAX_FILE_NAME_SIZE]){
-    if (current_dir->children.block_idx == 0 && current_dir->children.block_off == 0){
-        return -1;
-    }
-    InodeIdx idx = current_dir->children;
+int inode_remove(Inode dir, char name[MAX_FILE_NAME_SIZE], Inode out_removed) {
+    InodeIdx idx = dir->children;
+    Inode_t cur;
     Inode_t prev;
     prev.idx.block_off = 0;
     prev.idx.block_idx = 0;
 
     while (true) {
-        Inode_t cur;
         read_inode_from_disk(&cur, idx);
         if (!cur.isDirectory && strcmp(name, cur.name) == 0){
             if (prev.idx.block_off == 0 && prev.idx.block_idx == 0){
-                current_dir->children = cur.next;
+                dir->children = cur.next;
             } else {
                 prev.next = cur.next;
             }
-            delete_file(cur.file_idx, cur.size);
+            *out_removed = cur;
             break;
         }
         // end of dir children
@@ -419,6 +416,14 @@ int okfs_delfile(char name[MAX_FILE_NAME_SIZE]){
         idx = cur.next;
         prev = cur;
     }
+    return 0;
+}
+
+int okfs_delfile(char name[MAX_FILE_NAME_SIZE]){
+    Inode_t inode;
+    int res = inode_remove(current_dir, name, &inode);
+    if (res == -1) return -1;
+    delete_file(inode.file_idx, inode.size);
     return 0;
 }
 
@@ -462,6 +467,76 @@ int okfs_cgfile(char name[MAX_FILE_NAME_SIZE], char* content, size_t size){
 
 }
 
+int resolvePath(const char* path, size_t path_size, Inode out_inode){
+    char name[MAX_FILE_NAME_SIZE];
+    uint32_t path_idx = 0;
+    Inode_t dir = *current_dir;
+    while (true){
+        uint32_t name_idx = 0;
+        while (path[path_idx] != '/'){
+            name[name_idx++] = path[path_idx++];
+            if (name_idx >= MAX_FILE_NAME_SIZE) return -1;
+            if (path_idx >= path_size) break;
+        }
+        path_idx++; // jump the '/'
+        name[name_idx] = '\0';
 
+        if (name[0] == '.' && name[1] == '.'){
+            if (dir.parent.block_off == UINT32_MAX && dir.parent.block_idx == UINT32_MAX) continue;
+
+            read_inode_from_disk(&dir, dir.parent);
+
+        } else {
+
+            InodeIdx idx = dir.children;
+            if (idx.block_idx == 0 && idx.block_off == 0){
+                return -1;
+            }
+
+            while (true) {
+                Inode_t cur;
+                read_inode_from_disk(&cur, idx);
+                if (cur.isDirectory && strcmp(name, cur.name) == 0){
+                    dir = cur;
+                    break;
+                }
+                // end of dir children
+                if (cur.next.block_off == 0 && cur.next.block_idx == 0) {
+                    return -1;
+                }
+                idx = cur.next;
+            }
+        }
+        if (path_idx >= path_size) {
+            *out_inode = dir;
+            return 0;
+        }
+    }
+}
+
+int okfs_mvfile(char name[MAX_FILE_NAME_SIZE], char* path, size_t path_size){
+    Inode_t inode;
+    int res = inode_remove(current_dir, name, &inode);
+    if (res == -1) return -1;
+
+    Inode_t new_dir;
+    res = resolvePath(path, path_size, &new_dir);
+    if (res == -1) {
+        inode_insert(current_dir, &inode);
+        return -2;
+    }
+
+    res = inode_insert(&new_dir, &inode);
+    if (res == -1) {
+        inode_insert(current_dir, &inode);
+        return -3;
+    }
+    inode.parent = new_dir.idx;
+    inode.next.block_off = 0;
+    inode.next.block_idx = 0;
+    write_inode_to_disk(&inode, inode.idx);
+    write_inode_to_disk(&new_dir, new_dir.idx);
+    return 0;
+}
 
 
