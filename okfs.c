@@ -186,7 +186,7 @@ uint32_t find_free_space(uint32_t num_blocks){
 
 int file_create(char* content, size_t size, uint32_t* out_idx, uint32_t* out_num_blocks){
     size += sizeof(FileMetadata);
-    uint32_t num_blocks = (size / (NUM_BLOCKS)) + (size % (NUM_BLOCKS) != 0);
+    uint32_t num_blocks = (size / (BLOCK_SIZE)) + (size % (BLOCK_SIZE) != 0);
 
     uint32_t free_block_idx = find_free_space(num_blocks);
 
@@ -451,10 +451,13 @@ int okfs_cat(char name[MAX_FILE_NAME_SIZE]) {
         Inode_t cur;
         inode_read_from_disk(&cur, idx);
         if (!cur.isDirectory && strcmp(name, cur.name) == 0){
-            char buff[BLOCK_SIZE];
-            for (uint32_t i = 0; i < cur.size; i++){
+            char buff[BLOCK_SIZE + 1];
+            buff[BLOCK_SIZE] = '\0';
+            disk_read_block(cur.file_idx, buff);
+            printf("%s", buff + sizeof(FileMetadata));
+            for (uint32_t i = 1; i < cur.size; i++){
                 disk_read_block(cur.file_idx + i, buff);
-                printf("%s", buff + sizeof(FileMetadata));
+                printf("%s", buff);
             }
             printf("\n");
             break;
